@@ -38,12 +38,15 @@ async def send_business_reply(
     connection = db.get_enabled_connection(conn)
     if connection is None:
         return {"ok": False, "error": "no active business connection"}
+    # Группа (chat_id < 0): бот — обычный участник и пишет от своего имени,
+    # Business-подключение и его права здесь не участвуют.
+    is_group = chat_id < 0
     rights = json.loads(connection["rights_json"] or "{}")
-    if not rights.get("can_reply"):
+    if not is_group and not rights.get("can_reply"):
         return {"ok": False, "error": "bot lacks can_reply right"}
 
     cid = connection["connection_id"]
-    base = {"chat_id": chat_id, "business_connection_id": cid}
+    base = {"chat_id": chat_id} if is_group else {"chat_id": chat_id, "business_connection_id": cid}
 
     def store(sent) -> None:
         # Telegram не присылает эхо собственных business-сообщений через getUpdates,
@@ -79,7 +82,7 @@ async def send_business_reply(
     except TelegramAPIError as e:
         return {"ok": False, "error": str(e)}
 
-    if rights.get("can_read_messages"):
+    if not is_group and rights.get("can_read_messages"):
         mid = db.last_incoming_message_id(conn, chat_id)
         if mid is not None:
             try:

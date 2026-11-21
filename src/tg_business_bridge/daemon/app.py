@@ -6,7 +6,7 @@ from aiogram import Bot, Dispatcher
 
 from tg_business_bridge import db, media
 from tg_business_bridge.config import Settings, assert_data_dir_safe
-from tg_business_bridge.daemon import business_handlers, draft_handlers
+from tg_business_bridge.daemon import business_handlers, draft_handlers, group_handlers
 
 log = logging.getLogger(__name__)
 
@@ -28,6 +28,8 @@ async def run() -> None:
 
     dp = Dispatcher(conn=conn, settings=settings)
     dp.include_router(business_handlers.router)
+    # до draft_handlers: сообщения групп не должны попадать в обработчики владельца
+    dp.include_router(group_handlers.router)
     dp.include_router(draft_handlers.router)
 
     watcher = asyncio.create_task(draft_handlers.watch_drafts(bot, conn, settings))

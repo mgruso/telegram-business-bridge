@@ -499,6 +499,9 @@ def list_chats(conn: sqlite3.Connection, active_since_ts: int | None = None) -> 
                     (SELECT json_extract(raw_json, '$.from_user.username') FROM messages m3
                      WHERE m3.chat_id = m.chat_id AND m3.direction='in'
                      ORDER BY ts DESC LIMIT 1) AS username,
+                    (SELECT json_extract(raw_json, '$.chat.title') FROM messages m4
+                     WHERE m4.chat_id = m.chat_id
+                     ORDER BY ts DESC LIMIT 1) AS title,
                     EXISTS (SELECT 1 FROM paused_chats p WHERE p.chat_id = m.chat_id) AS paused
              FROM messages m GROUP BY chat_id"""
     if active_since_ts is not None:
