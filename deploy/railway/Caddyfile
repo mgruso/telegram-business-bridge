@@ -1,0 +1,38 @@
+# Прокси перед MCP-сервером.
+# Снаружи доступны только два адреса:
+#   /health                         — проверка «жив ли сервер» для Railway
+#   /<BRIDGE_PROXY_SECRET>/mcp      — MCP (секретный путь работает как пароль)
+# Всё остальное — 404. Сам MCP слушает только 127.0.0.1:8765 внутри контейнера.
+{
+	admin off
+	auto_https off
+	persist_config off
+	# Ошибки запросов Caddy пишет вместе с адресом, а в адресе секрет —
+	# поэтому журнал ошибок запросов отключён. Журнала доступа нет вовсе.
+	log default {
+		output stderr
+		exclude http.log.error http.handlers.reverse_proxy
+	}
+}
+
+:{$PORT:8080} {
+	handle /health {
+		respond "ok" 200
+	}
+
+	# handle_path отрезает секретный префикс: /<секрет>/mcp -> /mcp
+	handle_path /{$BRIDGE_PROXY_SECRET}/* {
+		reverse_proxy 127.0.0.1:8765 {
+			# MCP принимает только Host=localhost (защита от DNS rebinding)
+			header_up Host 127.0.0.1:8765
+			# claude.ai может прислать свой Origin — MCP бы его отверг
+			header_up -Origin
+			# не буферизовать потоковые ответы (SSE)
+			flush_interval -1
+		}
+	}
+
+	handle {
+		respond "Not found" 404
+	}
+}

@@ -1,0 +1,12 @@
+# Настройки Railway (config as code).
+# Том (Volume) здесь задать нельзя — его подключаем в интерфейсе Railway к пути /data.
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "deploy/railway/Dockerfile"
+
+[deploy]
+healthcheckPath = "/health"
+healthcheckTimeout = 120
+restartPolicyType = "ALWAYS"
+# ровно один экземпляр: два collector-а мешали бы друг другу получать сообщения
+numReplicas = 1
