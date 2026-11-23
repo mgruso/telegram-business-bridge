@@ -13,7 +13,7 @@ import time
 from aiogram import Bot, F, Router
 from aiogram.types import Message
 
-from tg_business_bridge import db, media
+from tg_business_bridge import db, media, transcribe
 from tg_business_bridge.config import Settings
 from tg_business_bridge.extract import extract_message_row
 
@@ -21,6 +21,7 @@ log = logging.getLogger(__name__)
 router = Router()
 
 GROUP_TYPES = {"group", "supergroup"}
+_TRANSCRIBABLE_MEDIA = {"voice", "audio", "video_note"}
 _RECHECK_SEC = 600
 # chat_id -> (разрешена ли группа, когда проверяли)
 _allowed_cache: dict[int, tuple[bool, float]] = {}
@@ -70,6 +71,10 @@ async def on_group_message(
         rel = await media.download_media(bot, row, settings.media_dir)
         if rel is not None:
             db.set_media_path(conn, rowid, rel)
+            if transcribe.enabled(settings) and row["media_type"] in _TRANSCRIBABLE_MEDIA:
+                text = await transcribe.transcribe(settings, str(settings.data_dir / rel))
+                if text:
+                    db.set_message_text(conn, rowid, f"{row['text']}\n{text}" if row["text"] else text)
 
 
 @router.edited_message(F.chat.type.in_(GROUP_TYPES))

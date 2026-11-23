@@ -264,6 +264,10 @@ JavaScript тексты своих черновиков, поэтому обще
 | BRIDGE_MCP_HOST | хост MCP-сервера для streamable-http (default 127.0.0.1) |
 | BRIDGE_MCP_PORT | порт MCP-сервера для streamable-http (default 8765) |
 | BRIDGE_DEEPGRAM_API_KEY | ключ Deepgram: голосовые, аудио и видеокружки (voice/audio/video_note) → текст (опционально, default пусто — без него не расшифровываются) |
+| BRIDGE_GROQ_API_KEY | ключ Groq: расшифровка голосовых/аудио/видеокружков через Whisper (бесплатный тариф с лимитами); если задан, используется вместо Deepgram |
+| BRIDGE_GROQ_MODEL | модель Groq для расшифровки (default whisper-large-v3-turbo) |
+| OWNER_TZ | часовой пояс владельца для get_unprocessed/list_pending (например Europe/Moscow; default UTC) |
+| CURSOR_START_ISO | дата, с которой начинаются новые закладки агентов (пусто = с начала архива) |
 | BRIDGE_MEDIA_RETENTION_DAYS | 0 = хранить вечно (default); файлы медиа старше N дней удаляются с диска, тексты и file_id остаются |
 | BRIDGE_EDITOR_URL | HTTPS-адрес страницы Mini App-редактора (по умолчанию пусто = редактирование выключено; страницу `docs/editor.html` размещаете сами, см. [Редактирование черновиков](#редактирование-черновиков-mini-app)) |
 

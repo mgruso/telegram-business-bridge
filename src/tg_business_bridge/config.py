@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     mcp_host: str = "127.0.0.1"
     mcp_port: int = 8765
     deepgram_api_key: str = ""
+    groq_api_key: str = ""  # расшифровка голосовых через Groq (приоритетнее Deepgram)
+    groq_model: str = "whisper-large-v3-turbo"
     media_retention_days: int = 0  # 0 = хранить вечно (по умолчанию); тексты хранятся вечно всегда
     editor_url: str = ""  # адрес своей копии docs/editor.html; "" = редактирование черновиков выключено
 
