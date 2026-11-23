@@ -46,6 +46,10 @@ instead of reconstructing it from history every time.
 
 ## Tools
 
+All tools print time in the owner's time zone (OWNER_TZ) as ISO with offset plus a
+Russian weekday: `2026-11-23T17:51+03:00 пн`. `from_iso`/`to_iso` accept values with or
+without an offset; without one they are read as the owner's local time.
+
 Typical cycle: `list_chats` → `get_history`/`search_messages` → `get_context` →
 `draft_reply` → `list_drafts` (check what happened to the draft).
 
