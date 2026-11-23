@@ -99,6 +99,39 @@ Typical cycle: `list_chats` → `get_history`/`search_messages` → `get_context
 - `list_recent_edits(limit=20)` — sent drafts the owner corrected before
   sending: before (your version) and after (what went out).
 
+## Scheduled processing: cursors (bookmarks)
+
+For "what is new" runs on a schedule, do not page `get_history` by dates — use
+cursors. The bridge remembers how far each agent (`consumer`, e.g. `dots`) has
+read in each chat.
+
+Loop:
+
+1. `list_pending(consumer="dots")` — chats with unprocessed messages.
+2. `get_unprocessed(consumer="dots", chat_id=None, max_messages=150, max_chars=30000)`
+   — next batch as compact text. **Does not move the cursor.**
+3. Write the result (tasks, deadlines, agreements) to the external system.
+4. **Only after a successful write** — `mark_processed(consumer, chat_id,
+   up_to_id, edits_up_to)` with the numbers from that chat's footer (the ready
+   call is printed in the footer).
+5. Repeat 2–4 while `has_more=true`.
+
+If a run breaks before `mark_processed`, nothing is lost: the same messages
+come again next time, so write idempotently (dedupe by `chat_id` + `msg`).
+
+Line format: `[id=8812 | msg=4411 | 2026-11-23T14:05+01:00 Mon-in-Russian] Name (tg:777): text`.
+`id` is the bridge's internal record id (for `mark_processed`), `msg` is the
+Telegram message id (for `get_context`/`read_media`), time is in the owner's
+time zone (ISO with offset), `tg:N` is the sender's Telegram user id,
+`[ИСХ владелец]` marks the owner's own messages, `[ИСХ бот]` — sent by the bot.
+Media come as labels with a `read_media` hint; voice notes include a
+transcript when available. `(изменено)`/`(удалено)` mark edits/deletions; the
+block of edits to already-processed messages is confirmed via `edits_up_to`.
+`mark_processed` is idempotent, never moves backwards and never past the last
+message. `reset_cursor(consumer, chat_id, to_iso)` rolls a cursor back to a
+date (only on the owner's decision). `get_history`/`search_messages`/
+`get_context` are for follow-up questions, not for scheduled processing.
+
 ## Reply rules
 
 1. Default to `draft_reply`, not `send_reply`. The owner receives a card and

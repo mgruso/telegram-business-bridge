@@ -86,6 +86,16 @@ CREATE TABLE IF NOT EXISTS paused_chats (
     chat_id INTEGER PRIMARY KEY,
     ts INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS cursors (
+    consumer TEXT NOT NULL,
+    chat_id INTEGER NOT NULL,
+    last_processed_id INTEGER NOT NULL,
+    last_event_id INTEGER NOT NULL DEFAULT 0,
+    updated_at INTEGER NOT NULL,
+    PRIMARY KEY (consumer, chat_id)
+);
+CREATE INDEX IF NOT EXISTS idx_messages_chat_id ON messages(chat_id, id);
+CREATE INDEX IF NOT EXISTS idx_message_events_chat ON message_events(chat_id, id);
 CREATE VIRTUAL TABLE IF NOT EXISTS messages_fts USING fts5(
     text, content='messages', content_rowid='id', tokenize='unicode61'
 );
@@ -111,9 +121,32 @@ def connect(db_path: Path) -> sqlite3.Connection:
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA busy_timeout=30000")
+    _backup_before_cursors_migration(conn, db_path)
     init_schema(conn)
     _secure_db_files(db_path)
     return conn
+
+
+def _backup_before_cursors_migration(conn: sqlite3.Connection, db_path: Path) -> None:
+    """Один раз, перед появлением таблицы cursors, копирует существующую базу в
+    data/backups/. Миграция только добавляет таблицу и индексы, но копия — страховка.
+    Пустую/новую базу не копируем; сбой копии не мешает запуску."""
+    tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    if "messages" not in tables or "cursors" in tables:
+        return
+    backup_dir = db_path.parent / "backups"
+    target = backup_dir / f"bridge-before-cursors-{int(time.time())}.db"
+    try:
+        backup_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+        dst = sqlite3.connect(target)
+        try:
+            conn.backup(dst)
+        finally:
+            dst.close()
+        os.chmod(target, 0o600)
+        log.warning("резервная копия базы перед миграцией курсоров: %s", target)
+    except Exception as e:  # noqa: BLE001
+        log.warning("не удалось сделать резервную копию перед миграцией: %s", e)
 
 
 def _secure_db_files(db_path: Path) -> None:

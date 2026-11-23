@@ -25,6 +25,14 @@ async def run() -> None:
     bot = Bot(token=settings.bot_token)
     me = await bot.get_me()
     log.info("bot @%s started", me.username)
+    if me.can_read_all_group_messages:
+        log.info("getMe: can_read_all_group_messages=True — в группах бот видит все сообщения")
+    else:
+        log.warning(
+            "getMe: can_read_all_group_messages=False — в группах включён режим приватности, "
+            "бот видит только команды, упоминания и ответы ему. Исправление: @BotFather → "
+            "/setprivacy → Disable, затем заново добавить бота в группы"
+        )
 
     dp = Dispatcher(conn=conn, settings=settings)
     dp.include_router(business_handlers.router)
