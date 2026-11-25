@@ -54,16 +54,7 @@ async def on_business_message(
         log.info("повторная доставка msg %s в чате %s — пропущено", row["message_id"], row["chat_id"])
         return
     rowid = db.insert_message(conn, row)
-    if media.should_download(row):
-        rel = await media.download_media(bot, row, settings.media_dir)
-        if rel is not None:
-            db.set_media_path(conn, rowid, rel)
-            if transcribe.enabled(settings) and row["media_type"] in _TRANSCRIBABLE_MEDIA:
-                abs_path = str(settings.data_dir / rel)
-                transcript = await transcribe.transcribe(settings, abs_path)
-                if transcript:
-                    text = f"{row['text']}\n{transcript}" if row["text"] else transcript
-                    db.set_message_text(conn, rowid, text)
+    await media.ingest_media(bot, conn, settings, row, rowid)
 
 
 @router.edited_business_message()

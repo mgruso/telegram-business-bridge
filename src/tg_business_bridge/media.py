@@ -48,6 +48,39 @@ async def download_media(bot: Bot, row: dict, media_dir: Path) -> str | None:
         return None
 
 
+TRANSCRIBABLE_MEDIA = {"voice", "audio", "video_note"}
+
+
+async def ingest_media(bot: Bot, conn: sqlite3.Connection, settings: Settings, row: dict, rowid: int) -> None:
+    """Что делать с файлом нового сообщения.
+
+    store_media=True (поведение по умолчанию) — файл скачивается и хранится в data/media.
+    store_media=False — на сервере ничего не хранится: голосовые/аудио/кружки скачиваются
+    только ради расшифровки и сразу удаляются; остальные файлы не скачиваются вовсе —
+    read_media получает их из Telegram по запросу и не сохраняет."""
+    from tg_business_bridge import transcribe  # локальный импорт: transcribe не нужен без медиа
+
+    if not should_download(row):
+        return
+    needs_transcript = row["media_type"] in TRANSCRIBABLE_MEDIA and transcribe.enabled(settings)
+    if not settings.store_media and not needs_transcript:
+        return
+    rel = await download_media(bot, row, settings.media_dir)
+    if rel is None:
+        return
+    abs_path = settings.data_dir / rel
+    try:
+        if settings.store_media:
+            db.set_media_path(conn, rowid, rel)
+        if needs_transcript:
+            text = await transcribe.transcribe(settings, str(abs_path))
+            if text:
+                db.set_message_text(conn, rowid, f"{row['text']}\n{text}" if row["text"] else text)
+    finally:
+        if not settings.store_media:
+            abs_path.unlink(missing_ok=True)
+
+
 def human_size(n: int | None) -> str | None:
     if n is None:
         return None

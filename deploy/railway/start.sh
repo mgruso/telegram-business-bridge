@@ -22,6 +22,12 @@ if [[ "${BRIDGE_SEND_POLICY:-approve}" != "approve" || -n "${BRIDGE_AUTO_SEND_CH
   echo "ВНИМАНИЕ: включена автоотправка (BRIDGE_SEND_POLICY / BRIDGE_AUTO_SEND_CHAT_IDS)" >&2
 fi
 
+# Файлы не храним на сервере: read_media берёт их из Telegram по запросу (через демон)
+export BRIDGE_STORE_MEDIA="${BRIDGE_STORE_MEDIA:-false}"
+# Внутренний пароль между MCP и демоном: новый на каждый запуск, наружу не выходит
+export BRIDGE_INTERNAL_TOKEN="$(head -c 32 /dev/urandom | base64 | tr -d '/+=\n')"
+export BRIDGE_FETCH_PORT=8766
+
 BIN=/app/.venv/bin
 
 # 1) collector: секрет прокси ему не нужен
@@ -37,7 +43,7 @@ env -u BRIDGE_BOT_TOKEN -u BRIDGE_PROXY_SECRET \
 MCP=$!
 
 # 3) Caddy: токен бота ему не нужен
-env -u BRIDGE_BOT_TOKEN caddy run --config /app/deploy/railway/Caddyfile --adapter caddyfile &
+env -u BRIDGE_BOT_TOKEN -u BRIDGE_INTERNAL_TOKEN caddy run --config /app/deploy/railway/Caddyfile --adapter caddyfile &
 PROXY=$!
 
 trap 'kill -TERM $COLLECTOR $MCP $PROXY 2>/dev/null || true' TERM INT

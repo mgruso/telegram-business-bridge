@@ -6,7 +6,7 @@ from aiogram import Bot, Dispatcher
 
 from tg_business_bridge import db, media
 from tg_business_bridge.config import Settings, assert_data_dir_safe
-from tg_business_bridge.daemon import business_handlers, draft_handlers, group_handlers
+from tg_business_bridge.daemon import business_handlers, draft_handlers, fetch_server, group_handlers
 
 log = logging.getLogger(__name__)
 
@@ -40,6 +40,7 @@ async def run() -> None:
     dp.include_router(group_handlers.router)
     dp.include_router(draft_handlers.router)
 
+    fetch_runner = await fetch_server.start(bot)
     watcher = asyncio.create_task(draft_handlers.watch_drafts(bot, conn, settings))
     media_cleanup = None
     if settings.media_retention_days > 0:
@@ -47,6 +48,8 @@ async def run() -> None:
     try:
         await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
     finally:
+        if fetch_runner is not None:
+            await fetch_runner.cleanup()
         # cancel() лишь запрашивает отмену — дожидаемся фактического завершения задач
         for task in (watcher, media_cleanup):
             if task is None:

@@ -67,14 +67,7 @@ async def on_group_message(
     sender_id = row["sender_id"]
     row["direction"] = "out" if sender_id in (owner_id, bot.id) else "in"
     rowid = db.insert_message(conn, row)
-    if media.should_download(row):
-        rel = await media.download_media(bot, row, settings.media_dir)
-        if rel is not None:
-            db.set_media_path(conn, rowid, rel)
-            if transcribe.enabled(settings) and row["media_type"] in _TRANSCRIBABLE_MEDIA:
-                text = await transcribe.transcribe(settings, str(settings.data_dir / rel))
-                if text:
-                    db.set_message_text(conn, rowid, f"{row['text']}\n{text}" if row["text"] else text)
+    await media.ingest_media(bot, conn, settings, row, rowid)
 
 
 @router.edited_message(F.chat.type.in_(GROUP_TYPES))
