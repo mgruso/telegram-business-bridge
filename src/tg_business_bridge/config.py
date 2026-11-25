@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     deepgram_api_key: str = ""
     groq_api_key: str = ""  # расшифровка голосовых через Groq (приоритетнее Deepgram)
     groq_model: str = "whisper-large-v3-turbo"
+    bot_api_url: str = ""  # свой Telegram Bot API сервер в локальном режиме (файлы > 20 MB); "" = облако Telegram
     store_media: bool = True  # False — файлы не хранятся на сервере, read_media берёт их из Telegram по запросу
     media_retention_days: int = 0  # 0 = хранить вечно (по умолчанию); тексты хранятся вечно всегда
     editor_url: str = ""  # адрес своей копии docs/editor.html; "" = редактирование черновиков выключено

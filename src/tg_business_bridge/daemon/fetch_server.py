@@ -48,15 +48,18 @@ def make_app(bot: Bot, token: str) -> web.Application:
         except TelegramAPIError as e:
             log.warning("getFile failed: %s", e)
             return web.Response(status=502, text="telegram error")
-        if file.file_size and file.file_size > media.MAX_DOWNLOAD_BYTES:
+        if file.file_size and file.file_size > media.max_download_bytes():
+            media.release_local_file(bot, file.file_path)
             return web.Response(status=413, text="file is too big for Bot API")
         if not file.file_path:
             return web.Response(status=404, text="file not available")
         try:
-            buf = await bot.download_file(file.file_path)
+            buf = await bot.download_file(file.file_path, timeout=300)
         except (TelegramAPIError, OSError) as e:
             log.warning("download failed: %s", e)
             return web.Response(status=502, text="download failed")
+        finally:
+            media.release_local_file(bot, file.file_path)
         data = buf.getvalue() if buf is not None else b""
         return web.Response(body=data, content_type="application/octet-stream",
                             headers={"X-File-Path": file.file_path})

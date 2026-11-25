@@ -14,14 +14,48 @@ from tg_business_bridge.config import Settings
 
 log = logging.getLogger(__name__)
 
-MAX_DOWNLOAD_BYTES = 20 * 1024 * 1024
+MAX_DOWNLOAD_BYTES = 20 * 1024 * 1024  # предел облачного Bot API (getFile)
+LOCAL_DEFAULT_MAX_MB = 200  # свой сервер отдаёт до 2 GB, но файл целиком идёт через память
+
+
+def local_bot_api() -> bool:
+    """Бот работает через собственный Bot API сервер в локальном режиме."""
+    import os
+    return bool((os.environ.get("BRIDGE_BOT_API_URL") or "").strip())
+
+
+def max_download_bytes() -> int:
+    if not local_bot_api():
+        return MAX_DOWNLOAD_BYTES
+    import os
+    try:
+        mb = int(os.environ.get("BRIDGE_MAX_FILE_MB") or LOCAL_DEFAULT_MAX_MB)
+    except ValueError:
+        mb = LOCAL_DEFAULT_MAX_MB
+    return max(1, mb) * 1024 * 1024
+
+
+def max_download_label() -> str:
+    return f"{max_download_bytes() // (1024 * 1024)} MB"
+
+
+def release_local_file(bot: Bot, file_path: str | None) -> None:
+    """В локальном режиме свой Bot API сервер оставляет копию файла у себя на диске —
+    мы файлы не храним, поэтому удаляем её сразу после чтения."""
+    api = getattr(getattr(bot, "session", None), "api", None)
+    if not file_path or getattr(api, "is_local", False) is not True:
+        return
+    try:
+        Path(api.wrap_local_file.to_local(file_path)).unlink(missing_ok=True)
+    except Exception as e:  # noqa: BLE001 - уборка не должна ронять выдачу файла
+        log.warning("не удалось удалить временный файл Bot API сервера: %s", e)
 
 
 def should_download(row: dict) -> bool:
     if not row.get("file_id"):
         return False
     size = row.get("file_size")
-    return size is None or size <= MAX_DOWNLOAD_BYTES
+    return size is None or size <= max_download_bytes()
 
 
 async def download_media(bot: Bot, row: dict, media_dir: Path) -> str | None:
@@ -42,6 +76,7 @@ async def download_media(bot: Bot, row: dict, media_dir: Path) -> str | None:
             tmp.replace(dest)
         finally:
             tmp.unlink(missing_ok=True)
+            release_local_file(bot, file.file_path)
         return str(dest.relative_to(media_dir.parent))
     except (TelegramAPIError, OSError) as e:
         log.warning("media download failed for %s: %s", row.get("file_id"), e)
