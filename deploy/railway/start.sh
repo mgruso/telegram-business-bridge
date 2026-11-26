@@ -51,9 +51,10 @@ else
   unset BRIDGE_BOT_API_URL || true
 fi
 NO_API_KEYS=(-u TELEGRAM_API_ID -u TELEGRAM_API_HASH)
+NO_NOTION=(-u NOTION_TOKEN)
 
 # 1) collector: секрет прокси ему не нужен
-env "${NO_API_KEYS[@]}" -u BRIDGE_PROXY_SECRET "$BIN/tg-business-bridge" &
+env "${NO_API_KEYS[@]}" "${NO_NOTION[@]}" -u BRIDGE_PROXY_SECRET "$BIN/tg-business-bridge" &
 PIDS+=($!)
 
 # 2) MCP: ни токена бота, ни секрета; слушает только localhost

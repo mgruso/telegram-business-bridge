@@ -96,6 +96,12 @@ CREATE TABLE IF NOT EXISTS cursors (
 );
 CREATE INDEX IF NOT EXISTS idx_messages_chat_id ON messages(chat_id, id);
 CREATE INDEX IF NOT EXISTS idx_message_events_chat ON message_events(chat_id, id);
+CREATE TABLE IF NOT EXISTS notion_uploads (
+    id INTEGER PRIMARY KEY, chat_id INTEGER NOT NULL, message_id INTEGER NOT NULL,
+    file_unique_id TEXT, page_id TEXT NOT NULL, target TEXT NOT NULL, status TEXT NOT NULL,
+    file_upload_id TEXT, filename TEXT, block_id TEXT, note TEXT, error TEXT,
+    created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
+);
 CREATE VIRTUAL TABLE IF NOT EXISTS messages_fts USING fts5(
     text, content='messages', content_rowid='id', tokenize='unicode61'
 );
